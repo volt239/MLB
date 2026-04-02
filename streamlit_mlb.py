@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from html import escape
+from textwrap import dedent
 
 import streamlit as st
 from streamlit_autorefresh import st_autorefresh
@@ -142,35 +143,37 @@ def render_game(game: dict, changed_mask: int) -> str:
 
     gradient = matchup_gradient(away, home)
 
-    return f"""
-    <article class="card" style="background:{gradient};">
-      <div class="scoreboard">
-        <div class="team"><h3>{away}</h3><div class="score">{away_score}</div><div>H {away_hits} / E {away_err}</div></div>
-        <div class="mid"><div>{status}</div><div>{half} {inning}</div></div>
-        <div class="team"><h3>{home}</h3><div class="score">{home_score}</div><div>H {home_hits} / E {home_err}</div></div>
-      </div>
-      <div class="meta">
-        <div class="meta-box"><div class="label">BALL</div><div class="val">{balls}</div></div>
-        <div class="meta-box"><div class="label">STRIKE</div><div class="val">{strikes}</div></div>
-        <div class="meta-box"><div class="label">OUT</div><div class="val">{outs}</div></div>
-        <div class="meta-box diamond-wrap">
-          <div class="diamond" aria-label="base-runner-state">
-            <span class="base second {cls(2, base2)}"></span>
-            <span class="base third {cls(4, base3)}"></span>
-            <span class="base first {cls(1, base1)}"></span>
-            <span class="base home"></span>
+    return dedent(
+        f"""
+        <article class="card" style="background:{gradient};">
+          <div class="scoreboard">
+            <div class="team"><h3>{away}</h3><div class="score">{away_score}</div><div>H {away_hits} / E {away_err}</div></div>
+            <div class="mid"><div>{status}</div><div>{half} {inning}</div></div>
+            <div class="team"><h3>{home}</h3><div class="score">{home_score}</div><div>H {home_hits} / E {home_err}</div></div>
           </div>
-        </div>
-      </div>
-      <div class="players">
-        <div class="row"><span class="k">선발투수</span> | {away}: {escape(str(game.get('probable_pitcher_away','-')))} (ERA {escape(str(game.get('probable_pitcher_away_era','-')))}) / {home}: {escape(str(game.get('probable_pitcher_home','-')))} (ERA {escape(str(game.get('probable_pitcher_home_era','-')))} )</div>
-        <div class="row"><span class="k">현재 타석/투수</span> | 타자: {escape(str(game.get('current_batter','-')))} ({escape(str(game.get('current_batter_position','-')))}, AVG {escape(str(game.get('current_batter_avg','-')))} ) / 투수: {escape(str(game.get('current_pitcher','-')))} ({escape(str(game.get('current_pitcher_position','-')))}, ERA {escape(str(game.get('current_pitcher_era','-')))} )</div>
-        <div class="row"><span class="k">라인업 미리보기</span> | {away}: {away_lineup}</div>
-        <div class="row"><span class="k">라인업 미리보기</span> | {home}: {home_lineup}</div>
-      </div>
-      <p class="sub">Last update: {local_time}</p>
-    </article>
-    """
+          <div class="meta">
+            <div class="meta-box"><div class="label">BALL</div><div class="val">{balls}</div></div>
+            <div class="meta-box"><div class="label">STRIKE</div><div class="val">{strikes}</div></div>
+            <div class="meta-box"><div class="label">OUT</div><div class="val">{outs}</div></div>
+            <div class="meta-box diamond-wrap">
+              <div class="diamond" aria-label="base-runner-state">
+                <span class="base second {cls(2, base2)}"></span>
+                <span class="base third {cls(4, base3)}"></span>
+                <span class="base first {cls(1, base1)}"></span>
+                <span class="base home"></span>
+              </div>
+            </div>
+          </div>
+          <div class="players">
+            <div class="row"><span class="k">선발투수</span> | {away}: {escape(str(game.get('probable_pitcher_away','-')))} (ERA {escape(str(game.get('probable_pitcher_away_era','-')))}) / {home}: {escape(str(game.get('probable_pitcher_home','-')))} (ERA {escape(str(game.get('probable_pitcher_home_era','-')))})</div>
+            <div class="row"><span class="k">현재 타석/투수</span> | 타자: {escape(str(game.get('current_batter','-')))} ({escape(str(game.get('current_batter_position','-')))}, AVG {escape(str(game.get('current_batter_avg','-')))}) / 투수: {escape(str(game.get('current_pitcher','-')))} ({escape(str(game.get('current_pitcher_position','-')))}, ERA {escape(str(game.get('current_pitcher_era','-')))})</div>
+            <div class="row"><span class="k">라인업 미리보기</span> | {away}: {away_lineup}</div>
+            <div class="row"><span class="k">라인업 미리보기</span> | {home}: {home_lineup}</div>
+          </div>
+          <p class="sub">Last update: {local_time}</p>
+        </article>
+        """
+    ).strip()
 
 
 def main() -> None:
@@ -201,11 +204,11 @@ def main() -> None:
         st.info("표시할 경기가 없습니다.")
         return
 
-    html = '<div class="cards">'
-    for g in games[:2]:
-        gid = g.get("game_id", f"{g['away']['name']}-{g['home']['name']}")
-        html += render_game(g, changed.get(gid, 0))
-    html += "</div>"
+    cards_html = "".join(
+        render_game(g, changed.get(g.get("game_id", f"{g['away']['name']}-{g['home']['name']}"), 0))
+        for g in games[:2]
+    )
+    html = f'<div class="cards">{cards_html}</div>'
     st.markdown(html, unsafe_allow_html=True)
 
 
