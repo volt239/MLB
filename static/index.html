@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Realtime Baseball Dashboard</title>
+    <style>
+      :root {
+        --bg: #0f172a;
+        --panel: #111827;
+        --line: #334155;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+        --accent: #22c55e;
+        --danger: #ef4444;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Pretendard, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: radial-gradient(circle at top, #1e293b 0%, var(--bg) 60%);
+        color: var(--text);
+        min-height: 100vh;
+      }
+      .wrap {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 24px 16px 40px;
+      }
+      .head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .title {
+        font-size: 24px;
+        font-weight: 700;
+        margin: 0;
+      }
+      .status {
+        font-size: 12px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .status.live {
+        color: #052e16;
+        background: var(--accent);
+        border-color: var(--accent);
+        font-weight: 700;
+      }
+      .status.down {
+        color: #7f1d1d;
+        background: #fecaca;
+        border-color: #fca5a5;
+      }
+      .games-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: linear-gradient(180deg, #0b1224, var(--panel));
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+      }
+      .scoreboard {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 8px;
+        align-items: center;
+      }
+      .team {
+        text-align: center;
+      }
+      .team h2 {
+        margin: 0 0 4px;
+        font-size: 17px;
+      }
+      .score {
+        font-size: 44px;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .mid {
+        text-align: center;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .meta {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      .meta-box {
+        background: rgba(2, 6, 23, 0.5);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+      }
+      .label {
+        font-size: 10px;
+        color: var(--muted);
+        margin-bottom: 2px;
+      }
+      .val {
+        font-size: 16px;
+        font-weight: 700;
+      }
+      .sub {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .players {
+        margin-top: 10px;
+        border-top: 1px dashed var(--line);
+        padding-top: 10px;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+      .players .row {
+        font-size: 12px;
+        color: var(--text);
+      }
+      .players .k {
+        color: var(--muted);
+      }
+      .diamond-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .diamond {
+        position: relative;
+        width: 56px;
+        height: 56px;
+      }
+      .base {
+        position: absolute;
+        width: 11px;
+        height: 11px;
+        border: 1px solid rgba(255, 255, 255, 0.75);
+        background: rgba(15, 23, 42, 0.45);
+        border-radius: 2px;
+        transform: translate(-50%, -50%) rotate(45deg);
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+      .base.on {
+        background: #fde047;
+        border-color: #facc15;
+        box-shadow: 0 0 8px rgba(250, 204, 21, 0.8);
+        animation: basePulse 1.2s ease-in-out infinite;
+      }
+      .base.flash {
+        animation: baseFlash 0.45s ease-out 1, basePulse 1.2s ease-in-out infinite;
+      }
+      .base.second { top: 12px; left: 50%; }
+      .base.third { top: 50%; left: 12px; }
+      .base.first { top: 50%; left: calc(100% - 12px); }
+      .base.home {
+        top: calc(100% - 12px);
+        left: 50%;
+        background: rgba(148, 163, 184, 0.5);
+      }
+      @keyframes basePulse {
+        0%, 100% {
+          box-shadow: 0 0 6px rgba(250, 204, 21, 0.65);
+          filter: saturate(1);
+        }
+        50% {
+          box-shadow: 0 0 14px rgba(250, 204, 21, 0.95);
+          filter: saturate(1.25);
+        }
+      }
+      @keyframes baseFlash {
+        0% {
+          transform: translate(-50%, -50%) rotate(45deg) scale(1);
+        }
+        35% {
+          transform: translate(-50%, -50%) rotate(45deg) scale(1.25);
+          box-shadow: 0 0 18px rgba(255, 255, 255, 0.95);
+        }
+        100% {
+          transform: translate(-50%, -50%) rotate(45deg) scale(1);
+        }
+      }
+      @media (max-width: 900px) {
+        .games-grid { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 680px) {
+        .score { font-size: 36px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="head">
+        <h1 class="title">Dodgers & Padres Live Dashboard</h1>
+        <span id="ws-status" class="status">CONNECTING</span>
+      </div>
+
+      <section id="games" class="games-grid"></section>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const TEAM_COLORS = {
+        "LOSANGELESDODGERS": "#005A9C",
+        "SANDIEGOPADRES": "#2F241D",
+        "WASHINGTONNATIONALS": "#AB0003",
+        "BOSTONREDSOX": "#BD3039",
+        "SANFRANCISCOGIANTS": "#FD5A1E",
+        "NEWYORKYANKEES": "#132448",
+        "CHICAGOCUBS": "#0E3386",
+        "STLOUISCARDINALS": "#C41E3A",
+      };
+
+      function normalizeTeamName(name) {
+        return String(name || "").toUpperCase().replace(/\s+/g, "");
+      }
+
+      function teamColor(name) {
+        const key = normalizeTeamName(name);
+        return TEAM_COLORS[key] || "#334155";
+      }
+
+      function mixHex(a, b, ratio = 0.5) {
+        const ah = a.replace("#", "");
+        const bh = b.replace("#", "");
+        const ar = parseInt(ah.slice(0, 2), 16);
+        const ag = parseInt(ah.slice(2, 4), 16);
+        const ab = parseInt(ah.slice(4, 6), 16);
+        const br = parseInt(bh.slice(0, 2), 16);
+        const bg = parseInt(bh.slice(2, 4), 16);
+        const bb = parseInt(bh.slice(4, 6), 16);
+        const rr = Math.round(ar + (br - ar) * ratio);
+        const rg = Math.round(ag + (bg - ag) * ratio);
+        const rb = Math.round(ab + (bb - ab) * ratio);
+        return `#${[rr, rg, rb].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+      }
+
+      function matchupGradient(awayName, homeName) {
+        const away = teamColor(awayName);
+        const home = teamColor(homeName);
+        const mid = mixHex(away, home, 0.5);
+        return `linear-gradient(90deg, ${away} 0%, ${away} 38%, ${mid} 50%, ${home} 62%, ${home} 100%)`;
+      }
+
+      const prevBaseMaskByGame = {};
+      const BASE_BITS = { first: 1, second: 2, third: 4 };
+      function baseMask(data) {
+        return (Number(data.base1 || 0) > 0 ? BASE_BITS.first : 0)
+          | (Number(data.base2 || 0) > 0 ? BASE_BITS.second : 0)
+          | (Number(data.base3 || 0) > 0 ? BASE_BITS.third : 0);
+      }
+      function baseClass(baseName, occupied, changedMask) {
+        const on = occupied ? "on" : "";
+        const changed = occupied && (changedMask & BASE_BITS[baseName]) ? "flash" : "";
+        return `${on} ${changed}`.trim();
+      }
+
+      function setWsStatus(state) {
+        const badge = $("ws-status");
+        badge.className = "status";
+        if (state === "LIVE") {
+          badge.textContent = "LIVE";
+          badge.classList.add("live");
+          return;
+        }
+        if (state === "DOWN") {
+          badge.textContent = "RECONNECTING";
+          badge.classList.add("down");
+          return;
+        }
+        badge.textContent = state;
+      }
+
+      function gameCardHtml(data) {
+        const localTime = new Date(data.last_update).toLocaleString();
+        const awayLineup = (data.away_lineup_preview || []).join(", ") || "-";
+        const homeLineup = (data.home_lineup_preview || []).join(", ") || "-";
+        const gradient = matchupGradient(data.away.name, data.home.name);
+        const currentMask = baseMask(data);
+        const gameId = data.game_id || `${data.away.name}-${data.home.name}`;
+        const prevMask = prevBaseMaskByGame[gameId] || 0;
+        const changedMask = currentMask ^ prevMask;
+        prevBaseMaskByGame[gameId] = currentMask;
+        const firstOn = baseClass("first", Number(data.base1 || 0) > 0, changedMask);
+        const secondOn = baseClass("second", Number(data.base2 || 0) > 0, changedMask);
+        const thirdOn = baseClass("third", Number(data.base3 || 0) > 0, changedMask);
+        return `
+          <article class="card" style="background: ${gradient};">
+            <div class="scoreboard">
+              <div class="team">
+                <h2>${data.away.name}</h2>
+                <div class="score">${data.away.score}</div>
+                <div>H ${data.away.hits} / E ${data.away.errors}</div>
+              </div>
+              <div class="mid">
+                <div>${data.status}</div>
+                <div>${data.half} ${data.inning}</div>
+              </div>
+              <div class="team">
+                <h2>${data.home.name}</h2>
+                <div class="score">${data.home.score}</div>
+                <div>H ${data.home.hits} / E ${data.home.errors}</div>
+              </div>
+            </div>
+            <div class="meta">
+              <div class="meta-box"><div class="label">BALL</div><div class="val">${data.balls}</div></div>
+              <div class="meta-box"><div class="label">STRIKE</div><div class="val">${data.strikes}</div></div>
+              <div class="meta-box"><div class="label">OUT</div><div class="val">${data.outs}</div></div>
+              <div class="meta-box diamond-wrap">
+                <div class="diamond" aria-label="base-runner-state">
+                  <span class="base second ${secondOn}"></span>
+                  <span class="base third ${thirdOn}"></span>
+                  <span class="base first ${firstOn}"></span>
+                  <span class="base home"></span>
+                </div>
+              </div>
+            </div>
+            <div class="players">
+              <div class="row"><span class="k">선발투수</span> | ${data.away.name}: ${data.probable_pitcher_away} (ERA ${data.probable_pitcher_away_era}) / ${data.home.name}: ${data.probable_pitcher_home} (ERA ${data.probable_pitcher_home_era})</div>
+              <div class="row"><span class="k">현재 타석/투수</span> | 타자: ${data.current_batter} (${data.current_batter_position}, AVG ${data.current_batter_avg}) / 투수: ${data.current_pitcher} (${data.current_pitcher_position}, ERA ${data.current_pitcher_era})</div>
+              <div class="row"><span class="k">라인업 미리보기</span> | ${data.away.name}: ${awayLineup}</div>
+              <div class="row"><span class="k">라인업 미리보기</span> | ${data.home.name}: ${homeLineup}</div>
+            </div>
+            <p class="sub">Last update: ${localTime}</p>
+          </article>
+        `;
+      }
+
+      function renderGames(games) {
+        const root = $("games");
+        const list = Array.isArray(games) ? games : [];
+        if (list.length === 0) {
+          root.innerHTML = `<article class="card"><p>표시할 경기가 없습니다.</p></article>`;
+          return;
+        }
+        root.innerHTML = list.slice(0, 2).map(gameCardHtml).join("");
+      }
+
+      async function bootstrap() {
+        const snapshot = await fetch("/api/games").then((r) => r.json());
+        renderGames(snapshot.games);
+      }
+
+      function connectWs() {
+        const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+        const ws = new WebSocket(`${protocol}://${window.location.host}/ws`);
+
+        let pingTimer = null;
+
+        ws.onopen = () => {
+          setWsStatus("LIVE");
+          pingTimer = setInterval(() => {
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send("ping");
+            }
+          }, 20000);
+        };
+
+        ws.onmessage = (event) => {
+          const payload = JSON.parse(event.data);
+          if (payload.games) {
+            renderGames(payload.games);
+          }
+        };
+
+        ws.onclose = () => {
+          setWsStatus("DOWN");
+          if (pingTimer) clearInterval(pingTimer);
+          setTimeout(connectWs, 1500);
+        };
+
+        ws.onerror = () => {
+          ws.close();
+        };
+      }
+
+      bootstrap();
+      connectWs();
+    </script>
+  </body>
+</html>
